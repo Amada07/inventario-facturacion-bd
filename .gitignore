@@ -1,0 +1,19 @@
+# Archivos temporales y de respaldo
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# Respaldos pesados de base de datos
+*.dmp
+*.dbf
+
+# Configuracion local de editores y clientes SQL (puede contener credenciales)
+.dbeaver/
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
