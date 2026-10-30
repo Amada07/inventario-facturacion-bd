@@ -169,6 +169,32 @@ SELECT object_type, object_name, status FROM user_objects
 SELECT COUNT(*) FROM VW_INVENTARIO_CRITICO;
 ```
 
+**Capturas de la lógica automática.** Resultados esperados al terminar el script 05:
+
+![Triggers activos](img/capturas/05_triggers_activos.png)
+
+*Los 3 triggers están `VALID` y `ENABLED`.*
+
+![Tipos y procedimientos válidos](img/capturas/05_tipos_y_procedimientos_validos.png)
+
+*Los 4 tipos y los 2 procedimientos están `VALID`.*
+
+![Vistas válidas](img/capturas/05_vistas_validas.png)
+
+*Las 2 vistas están `VALID`.*
+
+![Historial de compras del proveedor 7](img/capturas/05_vista_historial_proveedor7.png)
+
+*`VW_HISTORIAL_OPERACIONES`: compras del proveedor 7 con su total acumulado.*
+
+![Operaciones que no acumulan](img/capturas/05_vista_operaciones_sin_acumular.png)
+
+*`VW_HISTORIAL_OPERACIONES`: compras y facturas pendientes o anuladas, que no suman al acumulado.*
+
+![Inventario crítico](img/capturas/05_vista_inventario_critico.png)
+
+*`VW_INVENTARIO_CRITICO`: los 7 productos en o bajo el stock mínimo.*
+
 **Pruebas de funcionamiento.** Ejecute cada bloque por separado. Las pruebas terminan con `ROLLBACK` para dejar los datos como estaban; en DBeaver cambie antes el modo de transacción de *Auto* a *Manual* y presione **Rollback** al terminar cada prueba, o el `ROLLBACK` no tendrá efecto. En SQL*Plus ejecute antes `SET SERVEROUTPUT ON`.
 
 *Prueba A: el trigger bloquea una venta sin stock.* Debe fallar con `ORA-20001` (el casco, producto 15, tiene stock 0):
@@ -177,6 +203,10 @@ SELECT COUNT(*) FROM VW_INVENTARIO_CRITICO;
 INSERT INTO FACTURAS_DETALLE (ID_Factura, ID_Producto, Cantidad, Precio_Unitario, Subtotal)
 VALUES (12, 15, 1, 72.00, 72.00);
 ```
+
+![Prueba A: el trigger rechaza la venta](img/capturas/05_prueba_a_trigger_stock.png)
+
+*Resultado: `ORA-20001`, stock insuficiente para el casco de seguridad amarillo.*
 
 *Prueba B: facturar con el procedimiento.* Vende 3 destornilladores (producto 2). Se espera la factura `FAC-0015` con subtotal 66.00 (3 × Q 22.00), IVA 7.92 y total 73.92, y el stock del producto 2 pasa de 45 a 42:
 
@@ -194,6 +224,14 @@ SELECT Stock_Actual FROM PRODUCTOS WHERE ID_Producto = 2;
 ROLLBACK;
 ```
 
+![Prueba B: factura creada](img/capturas/05_prueba_b_salida_factura.png)
+
+*Resultado: el procedimiento crea la factura `FAC-0015`.*
+
+![Prueba B: totales de FAC-0015](img/capturas/05_prueba_b_factura_fac0015.png)
+
+*Resultado: subtotal 66.00, IVA 7.92, total 73.92 y estado `PAGADO`.*
+
 *Prueba C: comprar con el procedimiento.* Compra 10 martillos (producto 1) al proveedor 1. Se espera `COMP-0018` con subtotal 380.00, IVA 45.60 y total 425.60, y el stock del producto 1 pasa de 37 a 47:
 
 ```sql
@@ -209,6 +247,10 @@ SELECT Numero_Compra, Subtotal, Impuesto, Total_Compra
 SELECT Stock_Actual FROM PRODUCTOS WHERE ID_Producto = 1;
 ROLLBACK;
 ```
+
+![Prueba C: compra COMP-0018](img/capturas/05_prueba_c_compra_comp0018.png)
+
+*Resultado: subtotal 380.00, IVA 45.60 y total 425.60.*
 
 ## 7. Problemas comunes y cómo resolverlos
 
