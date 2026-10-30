@@ -59,13 +59,13 @@ Los datos que dependen de otra entidad **no se repiten**; se referencian con una
 
 ## Valores derivados que se guardan a propósito
 
-Hay cuatro valores que se pueden calcular a partir de otros. Se guardan por decisión de diseño (el enunciado los plantea como «calculados») y se mantienen correctos con restricciones y con una consulta de verificación. Estrictamente, son una redundancia controlada; si se quitaran, el modelo seguiría siendo 3FN sin cambiar nada más.
+Hay cuatro valores que se pueden calcular a partir de otros. Se guardan por decisión de diseño (el enunciado los plantea como «calculados») y se mantienen correctos con restricciones, con triggers y procedimientos almacenados y con una consulta de verificación. Estrictamente, son una redundancia controlada; si se quitaran, el modelo seguiría siendo 3FN sin cambiar nada más.
 
 | Valor guardado | De dónde se deriva | Cómo se mantiene correcto |
 |---|---|---|
-| `Subtotal` en `FACTURAS_DETALLE` y `COMPRAS_DETALLE` | `Cantidad × Precio_Unitario` | Se carga calculado en el DML; `CHECK (Subtotal > 0)` |
-| `Subtotal`, `Impuesto` y `Total_*` en los encabezados | Suma de los subtotales del detalle; IVA 12 %; subtotal más impuesto | Se cargan calculados en el DML; `CHECK (Total = Subtotal + Impuesto)` |
-| `Stock_Actual` en `PRODUCTOS` | Suma de entradas menos salidas del kárdex | El DML incluye una consulta que verifica que coincida con el último saldo del kárdex (debe devolver 0 filas) |
+| `Subtotal` en `FACTURAS_DETALLE` y `COMPRAS_DETALLE` | `Cantidad × Precio_Unitario` | Se carga calculado en el DML; `CHECK (Subtotal > 0)`; los procedimientos `SP_REGISTRAR_FACTURA` y `SP_REGISTRAR_COMPRA` lo calculan en las operaciones nuevas |
+| `Subtotal`, `Impuesto` y `Total_*` en los encabezados | Suma de los subtotales del detalle; IVA 12 %; subtotal más impuesto | Se cargan calculados en el DML; `CHECK (Total = Subtotal + Impuesto)`; los triggers `TRG_FACTDET_TOTALES` y `TRG_COMPDET_TOTALES` los recalculan cuando cambia el detalle |
+| `Stock_Actual` en `PRODUCTOS` | Suma de entradas menos salidas del kárdex | El DML incluye una consulta que verifica que coincida con el último saldo del kárdex (debe devolver 0 filas); los procedimientos de factura y compra lo actualizan junto con el kárdex |
 | `Saldo_Resultante` en `MOVIMIENTOS_INVENTARIO` | Saldo anterior más o menos la cantidad | Se registra en cada movimiento del kárdex; es el estado histórico del inventario en ese momento |
 
 Se mantienen guardados por rendimiento (consultar el stock sin recorrer todo el kárdex) y para conservar el histórico. `Precio_Unitario` en los detalles no es redundante: es el precio vigente **en el momento** de la operación y puede ser distinto del precio actual en `PRODUCTOS`.

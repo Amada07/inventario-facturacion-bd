@@ -30,6 +30,7 @@ Los scripts van numerados; deben ejecutarse en este orden:
 | 2 | `sql/02_ddl_crear_tablas.sql` | Crea las 14 tablas con llaves y restricciones | 14 tablas listadas al final |
 | 3 | `sql/03_dml_datos_prueba.sql` | Inserta los datos de prueba, hace `COMMIT` y ejecuta 3 verificaciones | Conteos, 0 filas de incoherencia y 7 productos en o bajo el mínimo |
 | 4 | `sql/04_consultas_reportes.sql` | 12 consultas y reportes, cada una con su propósito y resultado esperado | Ver el paso 4 |
+| 5 | `sql/05_logica_automatica.sql` | Crea 3 triggers, 4 tipos, 2 procedimientos almacenados y 2 vistas | 11 objetos creados, todos `VALID` |
 
 ## 4. Ejecución con SQL*Plus
 
@@ -46,6 +47,7 @@ Ajuste el servidor, el puerto y el nombre del servicio a su instalación; SQL*Pl
 @sql/02_ddl_crear_tablas.sql
 @sql/03_dml_datos_prueba.sql
 @sql/04_consultas_reportes.sql
+@sql/05_logica_automatica.sql
 ```
 
 ## 5. Ejecución con DBeaver
@@ -54,6 +56,7 @@ Ajuste el servidor, el puerto y el nombre del servicio a su instalación; SQL*Pl
 2. Los scripts 02, 03 y 04 se ejecutan completos con **Alt + X** (ejecutar script).
 3. El script 01 es un bloque `BEGIN ... END;` que termina con una línea `/` que DBeaver puede no procesar con Alt + X. Seleccione el bloque desde `BEGIN` hasta `END;` **sin la línea `/`** y ejecútelo con **Ctrl + Enter**.
 4. Las consultas del script 04 también se pueden ejecutar una por una: clic dentro de la consulta y **Ctrl + Enter**.
+5. El script 05 tiene bloques `CREATE ... END;` terminados con una línea `/`. Ejecútelo con SQL*Plus o, en DBeaver, seleccione cada bloque desde `CREATE` hasta su `END;` **sin la línea `/`** y ejecútelo con **Ctrl + Enter**. Las vistas y los `SELECT` de verificación también se ejecutan uno por uno.
 
 ## 6. Verificación paso a paso
 
@@ -150,6 +153,63 @@ Consulta 3, compras por proveedor y categoría:
 
 ![Consulta 3](img/capturas/consulta_03.png)
 
+### Paso 5: lógica automática
+
+**Verificación 1: objetos creados.** Deben aparecer 11 filas, todas con estado `VALID` (3 `TRIGGER`, 4 `TYPE`, 2 `PROCEDURE` y 2 `VIEW`):
+
+```sql
+SELECT object_type, object_name, status FROM user_objects
+ WHERE object_type IN ('TRIGGER','TYPE','PROCEDURE','VIEW')
+ ORDER BY object_type, object_name;
+```
+
+**Verificación 2: vista de inventario crítico.** Debe devolver 7 filas (los productos en o bajo el mínimo, uno de ellos agotado):
+
+```sql
+SELECT COUNT(*) FROM VW_INVENTARIO_CRITICO;
+```
+
+**Pruebas de funcionamiento.** Ejecute cada bloque por separado. Las pruebas terminan con `ROLLBACK` para dejar los datos como estaban; en DBeaver cambie antes el modo de transacción de *Auto* a *Manual* y presione **Rollback** al terminar cada prueba, o el `ROLLBACK` no tendrá efecto. En SQL*Plus ejecute antes `SET SERVEROUTPUT ON`.
+
+*Prueba A: el trigger bloquea una venta sin stock.* Debe fallar con `ORA-20001` (el casco, producto 15, tiene stock 0):
+
+```sql
+INSERT INTO FACTURAS_DETALLE (ID_Factura, ID_Producto, Cantidad, Precio_Unitario, Subtotal)
+VALUES (12, 15, 1, 72.00, 72.00);
+```
+
+*Prueba B: facturar con el procedimiento.* Vende 3 destornilladores (producto 2). Se espera la factura `FAC-0015` con subtotal 66.00 (3 × Q 22.00), IVA 7.92 y total 73.92, y el stock del producto 2 pasa de 45 a 42:
+
+```sql
+DECLARE
+    v_id NUMBER; v_num VARCHAR2(20);
+BEGIN
+    SP_REGISTRAR_FACTURA(1, 3, 1, T_LINEAS_VENTA(T_LINEA_VENTA(2, 3)), v_id, v_num);
+    DBMS_OUTPUT.PUT_LINE('Factura creada: ' || v_num);
+END;
+/
+SELECT Numero_Factura, Subtotal, Impuesto, Total_Factura, Estado
+  FROM FACTURAS_ENCABEZADO WHERE Numero_Factura = 'FAC-0015';
+SELECT Stock_Actual FROM PRODUCTOS WHERE ID_Producto = 2;
+ROLLBACK;
+```
+
+*Prueba C: comprar con el procedimiento.* Compra 10 martillos (producto 1) al proveedor 1. Se espera `COMP-0018` con subtotal 380.00, IVA 45.60 y total 425.60, y el stock del producto 1 pasa de 37 a 47:
+
+```sql
+DECLARE
+    v_id NUMBER; v_num VARCHAR2(20);
+BEGIN
+    SP_REGISTRAR_COMPRA(1, 14, T_LINEAS_COMPRA(T_LINEA_COMPRA(1, 10, NULL)), v_id, v_num);
+    DBMS_OUTPUT.PUT_LINE('Compra creada: ' || v_num);
+END;
+/
+SELECT Numero_Compra, Subtotal, Impuesto, Total_Compra
+  FROM COMPRAS_ENCABEZADO WHERE Numero_Compra = 'COMP-0018';
+SELECT Stock_Actual FROM PRODUCTOS WHERE ID_Producto = 1;
+ROLLBACK;
+```
+
 ## 7. Problemas comunes y cómo resolverlos
 
 | Problema | Causa | Solución |
@@ -160,3 +220,5 @@ Consulta 3, compras por proveedor y categoría:
 | `ORA-00001: unique constraint violated` al cargar datos | El script 03 se ejecutó dos veces sin limpiar | Ejecutar 01, 02 y 03 de nuevo |
 | En DBeaver el script 01 no hace nada o marca error en la línea `/` | DBeaver no procesa esa línea de cierre | Seleccionar el bloque sin la `/` y ejecutar con Ctrl + Enter |
 | DBeaver muestra los números con coma decimal | Configuración regional del cliente | Es solo de presentación; los valores almacenados son los mismos |
+| `ORA-20001: Stock insuficiente` | Se intentó vender más unidades de las que hay | No es un error del script: es la validación de stock funcionando |
+| `Warning: ... created with compilation errors` al correr el script 05 | Falta alguna tabla o el script 03 no se ejecutó | Ejecutar `SHOW ERRORS` (SQL*Plus), revisar el orden 01 a 05 y repetir |
