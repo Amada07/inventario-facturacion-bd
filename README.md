@@ -11,6 +11,7 @@ Base de datos relacional para una ferretería: administra el catálogo de produc
 
 - **Modelo:** 14 tablas normalizadas hasta la tercera forma normal.
 - **Datos de prueba:** 8 categorías, 15 proveedores, 18 clientes, 30 productos, 14 facturas con 39 líneas de detalle y 17 compras.
+- **Lógica automática:** 3 triggers, 2 procedimientos almacenados (registrar factura y registrar compra) y 2 vistas que mantienen los totales, el stock y el kárdex.
 - **Reportes:** 12 consultas (bajo stock, ventas por cliente, por producto y por mes, compras por proveedor, productos nunca vendidos y más).
 
 ## Motor de base de datos
@@ -39,6 +40,7 @@ Oracle Database 21c XE, esquema `FERRETERIADB`. Clientes SQL usados: DBeaver 25.
 | [sql/02_ddl_crear_tablas.sql](sql/02_ddl_crear_tablas.sql) | Crea las 14 tablas con sus restricciones |
 | [sql/03_dml_datos_prueba.sql](sql/03_dml_datos_prueba.sql) | Inserta los datos de prueba y verifica la carga |
 | [sql/04_consultas_reportes.sql](sql/04_consultas_reportes.sql) | Consultas y reportes |
+| [sql/05_logica_automatica.sql](sql/05_logica_automatica.sql) | Triggers, procedimientos almacenados y vistas |
 
 ## Ejecución rápida
 
@@ -49,6 +51,7 @@ Conectado al esquema `FERRETERIADB` de Oracle 21c XE, ejecutar en este orden (SQ
 @sql/02_ddl_crear_tablas.sql
 @sql/03_dml_datos_prueba.sql
 @sql/04_consultas_reportes.sql
+@sql/05_logica_automatica.sql
 ```
 
 Los requisitos, cómo verificar cada paso, la ejecución con DBeaver y los problemas comunes están en [docs/05_paso_a_paso.md](docs/05_paso_a_paso.md).
